@@ -1,12 +1,45 @@
 from bs4 import BeautifulSoup
+import re
+
+def add_headers(html_content):
+    """
+    Adiciona tags de cabeçalho ao HTML com base em padrões de texto.
+
+    :param html_content: Conteúdo HTML em formato de string.
+    :return: HTML com tags de cabeçalho adicionadas.
+    """
+    soup = BeautifulSoup(html_content, 'html.parser')
+
+    # Padrões de texto que indicam títulos e subtítulos
+    patterns = {
+        'h1': re.compile(r'^\s*LIVRO\s+[IVXLCDM]+\s*$', re.IGNORECASE),
+        'h2': re.compile(r'^\s*TÍTULO\s+[IVXLCDM]+\s*$', re.IGNORECASE),
+        'h3': re.compile(r'^\s*CAPÍTULO\s+[IVXLCDM]+\s*$', re.IGNORECASE),
+        'h4': re.compile(r'^\s*SEÇÃO\s+[IVXLCDM]+\s*$', re.IGNORECASE)
+    }
+
+    # Iterar sobre todos os parágrafos e adicionar tags de cabeçalho
+    for p in soup.find_all('p'):
+        text = p.get_text(strip=True)
+        for tag, pattern in patterns.items():
+            if pattern.match(text):
+                new_tag = soup.new_tag(tag)
+                new_tag.string = text
+                p.replace_with(new_tag)
+                break
+
+    return str(soup)
 
 def extract_content(html_content):
     """
     Extrai o conteúdo principal de um HTML, removendo elementos indesejados e ajustando o estilo do texto.
 
     :param html_content: Conteúdo HTML em formato de string.
-    :return: Conteúdo principal extraído.
+    :return: Conteúdo principal extraído e índice.
     """
+    # Adicionar tags de cabeçalho
+    html_content = add_headers(html_content)
+
     soup = BeautifulSoup(html_content, 'html.parser')
 
     # Remover elementos indesejados (exemplo: scripts, estilos, cabeçalhos, rodapés, imagens, iframes, vídeos, áudios)
@@ -20,14 +53,19 @@ def extract_content(html_content):
         else:
             tag.attrs['style'] = "color: black;"
 
-    # Manter as estruturas hierárquicas (exemplo: h1, h2, h3, etc.)
-    for header in soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5', 'h6']):
-        if 'style' in header.attrs:
-            header.attrs['style'] += "; color: black;"
-        else:
-            header.attrs['style'] = "color: black;"
+    # Adicionar IDs únicos aos elementos de cabeçalho e criar o índice
+    index = []
+    header_count = 0
+    for header in soup.find_all(['h1', 'h2', 'h3', 'h4']):
+        header_count += 1
+        header_id = f'header-{header_count}'
+        header['id'] = header_id
+        index.append(f'<li><a href="#{header_id}">{header.get_text()}</a></li>')
+
+    # Criar a estrutura do índice
+    index_html = '<ul>' + ''.join(index) + '</ul>'
 
     # Extrair o conteúdo principal (pode ser ajustado conforme necessário)
     content = soup.find('body')
 
-    return str(content)
+    return index_html + str(content)
