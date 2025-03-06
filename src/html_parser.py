@@ -1,5 +1,6 @@
 from bs4 import BeautifulSoup
 import re
+import chardet
 
 def add_headers(html_content):
     """
@@ -12,10 +13,11 @@ def add_headers(html_content):
 
     # Padrões de texto que indicam títulos e subtítulos
     patterns = {
-        'h1': re.compile(r'^\s*LIVRO\s+[IVXLCDM]+\s*$', re.IGNORECASE),
-        'h2': re.compile(r'^\s*TÍTULO\s+[IVXLCDM]+\s*$', re.IGNORECASE),
-        'h3': re.compile(r'^\s*CAPÍTULO\s+[IVXLCDM]+\s*$', re.IGNORECASE),
-        'h4': re.compile(r'^\s*SEÇÃO\s+[IVXLCDM]+\s*$', re.IGNORECASE)
+        'h1': re.compile(r'^\s*LIVRO\s+[IVXLCDM]+.*$', re.IGNORECASE),
+        'h2': re.compile(r'^\s*TÍTULO\s+[IVXLCDM]+.*$', re.IGNORECASE),
+        'h3': re.compile(r'^\s*CAPÍTULO\s+[IVXLCDM]+.*$', re.IGNORECASE),
+        'h4': re.compile(r'^\s*SEÇÃO\s+[IVXLCDM]+.*$', re.IGNORECASE),
+        'h5': re.compile(r'^\s*SUBSEÇÃO\s+[IVXLCDM]+.*$', re.IGNORECASE)
     }
 
     # Iterar sobre todos os parágrafos e adicionar tags de cabeçalho
@@ -46,17 +48,23 @@ def extract_content(html_content):
     for elem in soup(['script', 'style', 'header', 'footer', 'img', 'iframe', 'video', 'audio']):
         elem.decompose()
 
-    # Garantir que todo o texto seja na cor preta
+    # Garantir que todo o texto seja na cor preta e ajustar o alinhamento
     for tag in soup.find_all(True):
-        if 'style' in tag.attrs:
-            tag.attrs['style'] += "; color: black;"
+        if tag.name in ['h1', 'h2', 'h3', 'h4', 'h5']:
+            if 'style' in tag.attrs:
+                tag.attrs['style'] += "; color: black; text-align: center;"
+            else:
+                tag.attrs['style'] = "color: black; text-align: center;"
         else:
-            tag.attrs['style'] = "color: black;"
+            if 'style' in tag.attrs:
+                tag.attrs['style'] += "; color: black; text-align: justify;"
+            else:
+                tag.attrs['style'] = "color: black; text-align: justify;"
 
     # Adicionar IDs únicos aos elementos de cabeçalho e criar o índice
     index = []
     header_count = 0
-    for header in soup.find_all(['h1', 'h2', 'h3', 'h4']):
+    for header in soup.find_all(['h1', 'h2', 'h3', 'h4', 'h5']):
         header_count += 1
         header_id = f'header-{header_count}'
         header['id'] = header_id
